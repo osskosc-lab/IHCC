@@ -1,0 +1,74 @@
+experiment:
+  name: IHCC v1.1 Phase 1
+  epsilon: 0.10
+  alpha: 0.05
+  equivalence_margin: 0.01
+  series_length: 8
+  channels: 2
+  max_interaction_order: 2
+  sigma: 0.50
+  base_seed: 20260801
+  scenarios: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+sampling:
+  seeds: 100
+  intervention_trials: 12000
+  audit_trials: 12000
+  cross_folds: 5
+  bootstrap_repetitions: 1000
+  permutation_repetitions: 1000
+  train_probabilities: [0.35, 0.50, 0.65]
+  heldout_probability: 0.80
+  generalization_train_per_environment: 1200
+  generalization_test: 1800
+
+estimator:
+  mode: calibrated_hist_gb
+  calibration_folds: 3
+  calibration_fraction: 0.25
+  max_iter: 40
+  max_leaf_nodes: 7
+  learning_rate: 0.08
+  min_group_size: 30
+  histogram_bins: 24
+
+effects:
+  direct_beta_1: 0.45
+  direct_beta_2: 0.40
+  synergy_gamma: 0.45
+  finite_state_weights: [0.90, 0.70, 0.50]
+  finite_state_alphas: [0.25, 0.65, 0.90]
+  memory_beta: 0.60
+  memory_rho: 0.65
+
+audits:
+  state_missing_rates: [0.00, 0.25, 0.50, 0.75]
+  reset_errors: [0.00, 0.05, 0.10, 0.20]
+  intervention_leakages: [0.00, 0.05, 0.10]
+  reset_budgets: [0, 1, 2, 3]
+  tv_oracle_targets: [0.00, 0.10, 0.20, 0.35, 0.50]
+
+profiles:
+  smoke:
+    confirmatory: false
+    sampling:
+      seeds: 3
+      intervention_trials: 2400
+      audit_trials: 2400
+      cross_folds: 3
+      bootstrap_repetitions: 100
+      permutation_repetitions: 50
+      generalization_train_per_environment: 400
+      generalization_test: 600
+    estimator:
+      mode: histogram
+      min_group_size: 15
+      histogram_bins: 16
+  pilot:
+    confirmatory: false
+    sampling:
+      seeds: 30
+  confirmatory:
+    confirmatory: true
+    sampling:
+      seeds: 100

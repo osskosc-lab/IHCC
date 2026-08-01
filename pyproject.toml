@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ihcc-v11"
+version = "1.1.0a1"
+description = "Falsification-first Phase 1 experiments for Interventional History Causal Cones"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "matplotlib>=3.8",
+  "numpy>=1.26",
+  "pandas>=2.1",
+  "PyYAML>=6.0",
+  "pypdf>=4.0",
+  "reportlab>=4.0",
+  "scikit-learn>=1.4",
+  "scipy>=1.11",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[tool.setuptools.packages.find]
+include = ["ihcc_v11*"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
