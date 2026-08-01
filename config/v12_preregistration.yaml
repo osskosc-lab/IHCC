@@ -1,0 +1,79 @@
+experiment:
+  name: "IHCC v1.2 Phase 2A"
+  phase: "state-class-external residual positive-control reconstruction"
+  base_seed: 20260801
+  practical_gain: 0.01
+  alpha: 0.05
+  negative_control_alpha: 0.10
+  projection_floor: 0.05
+  target_oracle_gain: 0.05
+  primary_budget: 3
+  primary_length: 64
+  sensitivity_lengths: [32, 64, 128]
+  budgets: [1, 2, 3, 5, 8]
+
+kernel:
+  family: powerlaw
+  rho: 0.50
+  tau0: 1.0
+  sensitivity_rho: [0.30, 0.50, 0.80, 1.20]
+  sigma: 0.50
+  sensitivity_sigma: [0.25, 0.50, 1.00]
+  current_effect: 0.25
+
+sampling:
+  seeds: 100
+  train_probabilities: [0.35, 0.50, 0.65]
+  heldout_probabilities: [0.80, 0.20]
+  train_per_environment: 4000
+  test_per_environment: 4000
+  cross_folds: 5
+  bootstrap_repetitions: 1000
+
+projection:
+  lambda_min: 0.00001
+  lambda_max: 5.0
+  multistarts: 24
+  tolerance: 1.0e-10
+
+models:
+  ridge_alphas: [0.0001, 0.001, 0.01, 0.1, 1.0, 10.0, 100.0]
+  include_secondary_baselines: true
+
+threshold_curve:
+  oracle_gains: [0.0, 0.005, 0.010, 0.015, 0.030, 0.050, 0.100]
+
+false_residual_audit:
+  reset_errors: [0.0, 0.02, 0.05, 0.10]
+  intervention_leakages: [0.0, 0.02, 0.05, 0.10]
+
+reproducibility:
+  python_versions: ["3.11", "3.12"]
+  mean_absolute_tolerance: 0.002
+
+profiles:
+  smoke:
+    sampling:
+      seeds: 3
+      train_per_environment: 300
+      test_per_environment: 500
+      cross_folds: 3
+      bootstrap_repetitions: 100
+    projection:
+      multistarts: 6
+  pilot:
+    sampling:
+      seeds: 30
+      train_per_environment: 1500
+      test_per_environment: 1500
+      bootstrap_repetitions: 500
+    projection:
+      multistarts: 12
+  confirmatory:
+    sampling:
+      seeds: 100
+      train_per_environment: 4000
+      test_per_environment: 4000
+      bootstrap_repetitions: 1000
+    projection:
+      multistarts: 24

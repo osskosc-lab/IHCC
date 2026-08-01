@@ -1,0 +1,100 @@
+name: IHCC v1.2 Phase 2A Preflight
+
+on:
+  pull_request:
+  push:
+    branches: [main, agent/ihcc-v12-phase2a]
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: Experiment profile
+        required: true
+        default: smoke
+        type: choice
+        options:
+          - smoke
+          - pilot
+          - confirmatory
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ihcc-v12-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  version-run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    env:
+      PROFILE: ${{ inputs.profile || 'smoke' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - run: python -m pip install -e ".[dev]"
+      - name: Unit tests
+        run: python -m pytest
+      - name: Run generation-before-analysis audit
+        run: |
+          python run_v12.py \
+            --profile "$PROFILE" \
+            --output-dir "artifacts/v12-${{ matrix.python-version }}"
+      - name: Validate artifact contract
+        run: |
+          root="artifacts/v12-${{ matrix.python-version }}"
+          test -s "$root/projection_floor.csv"
+          test -s "$root/oracle_gain_calibration.csv"
+          test -s "$root/seed_level_ood_gain.csv"
+          test -s "$root/budget_gradient.csv"
+          test -s "$root/threshold_operating_curve.csv"
+          test -s "$root/metric_sensitivity.csv"
+          test -s "$root/reset_error_detection.csv"
+          test -s "$root/environment_transport.csv"
+          test -s "$root/python_version_comparison.csv"
+          test -s "$root/v11_regression_gates.csv"
+          test -s "$root/v12_falsification_gates.csv"
+          test -s "$root/IHCC_v1.2_Phase2A_Report_JA.md"
+          test -s "$root/IHCC_v1.2_Phase2A_Report_JA.pdf"
+          test -s "$root/decision.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ihcc-v12-py${{ matrix.python-version }}
+          path: artifacts/v12-${{ matrix.python-version }}/
+          if-no-files-found: error
+          retention-days: 30
+
+  cross-version-audit:
+    needs: version-run
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: python -m pip install pandas
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: ihcc-v12-py*
+          path: downloaded
+      - name: Compare Python 3.11 and 3.12
+        run: |
+          python compare_v12_versions.py \
+            --python311 downloaded/ihcc-v12-py3.11 \
+            --python312 downloaded/ihcc-v12-py3.12 \
+            --output artifacts/python_version_comparison.csv \
+            --tolerance 0.002
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ihcc-v12-cross-version-${{ github.run_id }}
+          path: artifacts/python_version_comparison.csv
+          if-no-files-found: error
+          retention-days: 30

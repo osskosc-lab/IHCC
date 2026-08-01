@@ -3,9 +3,9 @@ requires = ["setuptools>=69", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ihcc-v11"
-version = "1.1.0a1"
-description = "Falsification-first Phase 1 experiments for Interventional History Causal Cones"
+name = "ihcc"
+version = "1.2.0a1"
+description = "Falsification-first experiments for Interventional History Causal Cones"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -23,7 +23,7 @@ dependencies = [
 dev = ["pytest>=8.0"]
 
 [tool.setuptools.packages.find]
-include = ["ihcc_v11*"]
+include = ["ihcc_v11*", "ihcc_v12*"]
 
 [tool.pytest.ini_options]
 addopts = "-q"
