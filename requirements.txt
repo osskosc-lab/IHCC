@@ -1,0 +1,8 @@
+matplotlib>=3.8
+numpy>=1.26
+pandas>=2.1
+PyYAML>=6.0
+pypdf>=4.0
+reportlab>=4.0
+scikit-learn>=1.4
+scipy>=1.11

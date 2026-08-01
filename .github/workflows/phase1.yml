@@ -1,0 +1,123 @@
+name: IHCC v1.1 Phase 1
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: Experiment profile
+        required: true
+        default: smoke
+        type: choice
+        options:
+          - smoke
+          - pilot
+          - confirmatory
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ihcc-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: python -m pip install -e ".[dev]"
+      - run: python -m pytest
+
+  smoke-or-pilot:
+    if: github.event_name != 'workflow_dispatch' || inputs.profile != 'confirmatory'
+    needs: unit-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      PROFILE: ${{ inputs.profile || 'smoke' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: python -m pip install -e .
+      - name: Run experiment
+        run: python run_experiment.py --profile "$PROFILE" --output-dir "artifacts/$PROFILE"
+      - name: Validate required artifacts
+        run: |
+          test -s "artifacts/$PROFILE/falsification_gates.csv"
+          test -s "artifacts/$PROFILE/preregistered_results.md"
+          test -s "artifacts/$PROFILE/ihcc_v11_report.pdf"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ihcc-v11-${{ env.PROFILE }}-${{ github.run_id }}
+          path: artifacts/${{ env.PROFILE }}/
+          if-no-files-found: error
+          retention-days: 30
+
+  confirmatory-shards:
+    if: github.event_name == 'workflow_dispatch' && inputs.profile == 'confirmatory'
+    needs: unit-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 10
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: python -m pip install -e .
+      - name: Run ten-seed shard
+        run: |
+          python run_experiment.py \
+            --profile confirmatory \
+            --seed-offset $((10 * ${{ matrix.shard }})) \
+            --seed-count 10 \
+            --output-dir "artifacts/shard-${{ matrix.shard }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ihcc-v11-confirmatory-shard-${{ matrix.shard }}
+          path: artifacts/shard-${{ matrix.shard }}/
+          if-no-files-found: error
+          retention-days: 30
+
+  confirmatory-aggregate:
+    if: github.event_name == 'workflow_dispatch' && inputs.profile == 'confirmatory'
+    needs: confirmatory-shards
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: python -m pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: ihcc-v11-confirmatory-shard-*
+          path: downloaded-shards
+      - name: Aggregate and make the only confirmatory decision
+        run: |
+          python aggregate_results.py \
+            --input-root downloaded-shards \
+            --profile confirmatory \
+            --output-dir artifacts/confirmatory
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ihcc-v11-confirmatory-final-${{ github.run_id }}
+          path: artifacts/confirmatory/
+          if-no-files-found: error
+          retention-days: 90
